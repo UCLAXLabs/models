@@ -116,7 +116,7 @@ def load_image_into_numpy_array(image):
 # If you want to test the code with your images, just add path to the images to the TEST_IMAGE_PATHS.
 PATH_TO_TEST_IMAGES_DIR = '/mnt/clab/ucla_ua'
 TEST_IMAGE_PATHS = [ os.path.join(PATH_TO_TEST_IMAGES_DIR, i) for i in os.listdir(PATH_TO_TEST_IMAGES_DIR) ]
-#TEST_IMAGE_PATHS = [ 'test_images/uclalsc_uars100_1100_008a.jpg' ]
+#TEST_IMAGE_PATHS = [ '/mnt/clab/ucla_ua/uclalsc_uars100_015_006a.jpg' ]
 
 # Size, in inches, of the output images.
 IMAGE_SIZE = (12, 8)
@@ -189,7 +189,7 @@ for image_path in TEST_IMAGE_PATHS:
     continue
 
   basename = os.path.basename(image_path)
-  image = Image.open(image_path)
+  image = Image.open(image_path).convert('RGB')
   # the array based representation of the image will be used later in order to prepare the
   # result image with boxes and labels on it.
   image_np = load_image_into_numpy_array(image)
@@ -221,10 +221,10 @@ for image_path in TEST_IMAGE_PATHS:
   print("processing",boxes.shape[0],"boxes")
 
   for i in range(boxes.shape[0]):
-    print("score of box",i,"is",scores[i])
     if (float(scores[i]) < min_score_thresh):
       continue
 
+    print("score of box",i,"is",scores[i])
     pct_score = "{:.0%}".format(scores[i])
     
     # PMB Maybe also check whether class label is in a desired subset?
