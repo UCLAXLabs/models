@@ -114,7 +114,7 @@ def load_image_into_numpy_array(image):
 # # Detection
 
 # If you want to test the code with your images, just add path to the images to the TEST_IMAGE_PATHS.
-PATH_TO_TEST_IMAGES_DIR = 'test_images'
+PATH_TO_TEST_IMAGES_DIR = '/mnt/clab/ucla_ua'
 TEST_IMAGE_PATHS = [ os.path.join(PATH_TO_TEST_IMAGES_DIR, i) for i in os.listdir(PATH_TO_TEST_IMAGES_DIR) ]
 #TEST_IMAGE_PATHS = [ 'test_images/uclalsc_uars100_1100_008a.jpg' ]
 
@@ -225,7 +225,7 @@ for image_path in TEST_IMAGE_PATHS:
     if (float(scores[i]) < min_score_thresh):
       continue
 
-    decile = "{:.0%}".format(round(scores[i], 1))
+    pct_score = "{:.0%}".format(scores[i])
     
     # PMB Maybe also check whether class label is in a desired subset?
     box = tuple(boxes[i].tolist()) # box is ymin, xmin, ymax, xmax
@@ -272,8 +272,8 @@ for image_path in TEST_IMAGE_PATHS:
               "value": class_name
             },
             {
-              "label": "confidence_decile",
-              "value": decile
+              "label": "confidence",
+              "value": pct_score
             },
             {
               "label": "proportion",
