@@ -231,7 +231,11 @@ if (writeManifest):
 
   jsonFile = open('tf_curation.json', 'w')
 
-  jsonFile.write('{ "@context": [ "http://iiif.io/api/presentation/2/context.json", "http://codh.rois.ac.jp/iiif/curation/1/context.json" ], "@type": "cr:Curation", "@id": "' + iiifDomain + '/json/' + curationUUID + '", "label": "Curation list", "selections": [ { "@id": "' + iiifDomain + '.json/range/r1", "@type": "sc:Range", "label": "Objects detected by ' + MODEL_NAME + '", "members": [')
+  # XXX So far, this only works for 1 source manifest, should be able to handle multiple ones...
+
+  sourceManifest = targetManifests[0]
+
+  jsonFile.write('{ "@context": [ "http://iiif.io/api/presentation/2/context.json", "http://codh.rois.ac.jp/iiif/curation/1/context.json" ], "@type": "cr:Curation", "@id": "' + iiifDomain + '/json/' + curationUUID + '", "label": "Curation list", "selections": [ { "@id": "' + sourceManifest + '/range/r1", "@type": "sc:Range", "label": "Objects detected by ' + MODEL_NAME + '", "members": [')
 
 isFirstBox = True
 
@@ -395,6 +399,6 @@ for srcManifest in maniMappings:
 
 if (writeManifest):
   # Do this at the very end
-  jsonFile.write( '], "within": { "@id": "' + iiifDomain + '_manifest.json", "@type": "sc:Manifest", "label": "' + iiifProject + '" } } ] }')
+  jsonFile.write( '], "within": { "@id": "' + sourceManifest  + '", "@type": "sc:Manifest", "label": "' + iiifProject + '" } } ] }')
 
   jsonFile.close()
