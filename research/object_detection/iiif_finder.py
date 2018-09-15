@@ -65,7 +65,7 @@ DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
 
 # Path to frozen detection graph. This is the actual model that is used for the object detection.
 # When training/transfer-learn training a new model, must run this first:
-# python3 export_inference_graph.py --input_type image_tensor --pipeline_config_path models/model/pipeline.config --trained_checkpoint_prefix models/model/model.ckpt-3922 --output_directory exported_graphs
+# python3 export_inference_graph.py --input_type image_tensor --pipeline_config_path models/model/pipeline.config --output_directory exported_graphs --trained_checkpoint_prefix models/model/model.ckpt-3922
 PATH_TO_CKPT = 'exported_graphs/frozen_inference_graph.pb'
 
 # List of the strings that is used to add correct label for each box.
@@ -73,7 +73,7 @@ PATH_TO_LABELS = os.path.join('data', 'label_map.pbtxt')
 
 # label_map_util should be able to figure this out or at least choose a reasonable
 # default, but it's silly and doesn't, so it needs to be specified here
-NUM_CLASSES = 16
+NUM_CLASSES = 30
 
 # Set to True to create a IIIF curation manifest of the detected regions
 writeManifest = True
@@ -84,7 +84,8 @@ saveImages = True
 cacheEnabled = True
 cachePath = os.path.join(os.getcwd(), 'cache/')
 
-targetManifests = ['http://marinus.library.ucla.edu/images/kabuki/manifest.json']
+targetManifests = ['http://marinus.library.ucla.edu/images/kabuki/manifest.json',
+                   'http://marinus.library.ucla.edu/images/gokan/manifest.json']
 
 outputFolder = os.path.join(os.getcwd(), 'output/')
 if (saveImages):
@@ -201,6 +202,7 @@ def getURL(link, useCache=cacheEnabled):
   return data
 
 def processManifest(maniData):
+  manifestLabel = maniData['label']
   theseMappings = {}
   for sequence in maniData['sequences']:
     for canvas in sequence['canvases']:
@@ -216,7 +218,7 @@ def processManifest(maniData):
           theseMappings[canvasID] = [image]
         else:
           theseMappings[canvasID].append(image)
-  return theseMappings
+  return manifestLabel, theseMappings
 
 # MAIN
 
@@ -232,25 +234,37 @@ if (writeManifest):
   jsonFile = open('tf_curation.json', 'w')
 
   # XXX So far, this only works for 1 source manifest, should be able to handle multiple ones...
+  # The best way to do this is break it into ranges, one for each source manifest
 
-  sourceManifest = targetManifests[0]
-
-  jsonFile.write('{ "@context": [ "http://iiif.io/api/presentation/2/context.json", "http://codh.rois.ac.jp/iiif/curation/1/context.json" ], "@type": "cr:Curation", "@id": "' + iiifDomain + '/json/' + curationUUID + '", "label": "Curation list", "selections": [ { "@id": "' + sourceManifest + '/range/r1", "@type": "sc:Range", "label": "Objects detected by ' + MODEL_NAME + '", "members": [')
-
-isFirstBox = True
+  jsonFile.write('{ "@context": [ "http://iiif.io/api/presentation/2/context.json", "http://codh.rois.ac.jp/iiif/curation/1/context.json" ], "@type": "cr:Curation", "@id": "' + iiifDomain + '/json/' + curationUUID + '", "label": "Curation list", "selections": [ ')
+  
+isFirstRange = True
 
 # This is where relevant data from each manifest will be stored
 maniMappings = {}
+manifestLabels = {}
 
 # Parse each of the specified manifests
 for srcManifest in targetManifests:
   if (srcManifest not in maniMappings):
     print("Processing manifest",srcManifest)
     manifestData = getURL(srcManifest).json()
-    newMappings = processManifest(manifestData)
+    maniLabel, newMappings = processManifest(manifestData)
+    manifestLabels[srcManifest] = maniLabel
     maniMappings[srcManifest] = newMappings
 
 for srcManifest in maniMappings:
+  maniLabel = manifestLabels[srcManifest]
+  isFirstBox = True
+  if (writeManifest):
+
+    if (not isFirstRange):
+      jsonFile.write(', ')
+    else:
+      isFirstRange = False
+
+    jsonFile.write('{ "@id": "' + srcManifest + '/range/r1", "@type": "sc:Range", "label": "Objects detected by ' + MODEL_NAME + '", "members": [')
+
   for canvasID in maniMappings[srcManifest]:
     for image in maniMappings[srcManifest][canvasID]: 
 
@@ -283,7 +297,7 @@ for srcManifest in maniMappings:
       # add it to the JSON curation document.
   
       # XXX Arbitrary parameters!
-      min_score_thresh = .9
+      min_score_thresh = .5
       min_box_proportion_thresh = .001
 
       # These should be the same as resizedWidth and resizedHeight
@@ -396,9 +410,11 @@ for srcManifest in maniMappings:
           else:
             jsonFile.write("," + box_str + "\n")
 
+  if (writeManifest):
+    jsonFile.write('], "within": { "@id": "' + srcManifest  + '", "@type": "sc:Manifest", "label": "' + iiifProject + '" } }')
 
 if (writeManifest):
   # Do this at the very end
-  jsonFile.write( '], "within": { "@id": "' + sourceManifest  + '", "@type": "sc:Manifest", "label": "' + iiifProject + '" } } ] }')
+  jsonFile.write(' ] }')
 
   jsonFile.close()
