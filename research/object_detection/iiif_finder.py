@@ -55,13 +55,13 @@ from utils import visualization_utils as vis_util
 #from matplotlib import pyplot as plt
 
 # What model to use.
-MODEL_NAME = 'ssd_mobilenet_v1_coco_2017_11_17'
-MODEL_FILE = MODEL_NAME + '.tar.gz'
-DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
-
-#MODEL_NAME = 'faster_rcnn_inception_resnet_v2_atrous_coco_2018_01_28'
+#MODEL_NAME = 'ssd_mobilenet_v1_coco_2017_11_17'
 #MODEL_FILE = MODEL_NAME + '.tar.gz'
 #DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
+
+MODEL_NAME = 'faster_rcnn_inception_resnet_v2_atrous_coco_2018_01_28'
+MODEL_FILE = MODEL_NAME + '.tar.gz'
+DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
 
 # Path to frozen detection graph. This is the actual model that is used for the object detection.
 # When training/transfer-learn training a new model, must run this first:
@@ -84,8 +84,16 @@ saveImages = True
 cacheEnabled = True
 cachePath = os.path.join(os.getcwd(), 'cache/')
 
-targetManifests = ['http://marinus.library.ucla.edu/images/kabuki/manifest.json',
-                   'http://marinus.library.ucla.edu/images/gokan/manifest.json']
+targetManifests = []
+
+with open('manifest_list.txt', 'r') as manifestDoc:
+  for maniLine in manifestDoc:
+    targetManifests.append(maniLine.strip())
+targetManifests = ['http://dcollections.lib.keio.ac.jp/sites/default/files/iiif/TKU/01101/manifest.json']
+                   #'http://marinus.library.ucla.edu/images/kabuki/manifest.json',
+                   #'http://marinus.library.ucla.edu/images/gokan/manifest.json', ]
+# Could add more manifests from Keio's ukiyo-e collection, especially Hiroshige
+# http://dcollections.lib.keio.ac.jp/en/ukiyoe/4
 
 outputFolder = os.path.join(os.getcwd(), 'output/')
 if (saveImages):
@@ -273,8 +281,29 @@ for srcManifest in maniMappings:
       #imageID = canvasID.split('/')[-1].replace('.json','').replace('.tif','').replace('.png','').replace('.jpg','').replace('.jpeg','') + ".jpg"
       imageID = image['resource']['service']['@id'].split('/')[-1].replace('.tif','').replace('.png','').replace('.jpg','').replace('.jpeg','') + ".jpg"
 
-      fullWidth = image['resource']['width']
-      fullHeight = image['resource']['height']
+      imageInfoURL = image['resource']['service']['@id'] + '/info.json'
+
+      #try:
+      imageInfo = getURL(imageInfoURL).json()
+      fullWidth = imageInfo['width']
+      fullHeight = imageInfo['height']
+      #except:
+      #  # Sometimes this manifest lies, so it's better to get the info directly
+      #  # from the image server (without actually downloading the full image)
+      #  print("ERROR getting image info, reading dimensions from manifest")
+      #  fullWidth = image['resource']['width']
+      #  fullHeight = image['resource']['height']
+      print("FULL IMAGE WH",fullWidth,fullHeight)
+
+      # SOME manifests (cough, Keio Unversity, cough) don't include the
+      # /full/full/0/default.jpg
+      # after the image filename, so correct this...
+      if (fullURL.find('/full/full/0/default.jpg') == -1):
+        fullURL = image['resource']['service']['@id']
+        if (fullURL.find('/full/full/0/default.jpg') == -1):
+          fullerURL = fullURL + '/full/full/0/default.jpg'
+          print("WARNING: irregular image ID",fullURL,"expanding to",fullerURL)
+          fullURL = fullerURL
 
       # Files will be cached as byte streams by default
       resizedURL = fullURL.replace('full/full','full/!1000,1000')
@@ -297,7 +326,7 @@ for srcManifest in maniMappings:
       # add it to the JSON curation document.
   
       # XXX Arbitrary parameters!
-      min_score_thresh = .5
+      min_score_thresh = .95
       min_box_proportion_thresh = .001
 
       # These should be the same as resizedWidth and resizedHeight
